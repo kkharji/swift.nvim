@@ -4,24 +4,17 @@ local _cfg = require'swift_env.config'.values;
 local cfg = _cfg.format;
 local Job = require'plenary.job';
 local util = require'swift_env.util';
-local strfun = util.strfun('swift_env.format')
+local strfun = util.strfun('swift_env.format');
+local map = vim.api.nvim_set_keymap;
+local cmd = vim.cmd;
 
 M.create_and_format = function()
   local cwd = vim.loop.cwd();
   local path = fmt("%s/%s", cwd, cfg.config_file);
   local content = cfg.config_default_content;
   vim.fn.writefile(vim.split(content, "\n"), path)
-  M.format()
-  -- util.write_async(path, content, function()
-  --   return M.format()
-  -- end);
+  M.run()
 end
-
---- TODO: Find away to make formating async. The issue with async is that the
---- function exit before the buffer get written
--- util.readfile(output, vim.schedule_wrap(function(result)
---   util.set_buf_lines(bufnr, result)
--- end))
 
 M.run = function()
   local cwd = vim.loop.cwd();
@@ -30,7 +23,7 @@ M.run = function()
   local cfile_readable = util.filereadable(cfile_path);
 
   if ensure_cfile and not cfile_readable then
-    M.create_and_format()
+    return M.create_and_format()
   end
 
   local bufnr = vim.api.nvim_get_current_buf();
@@ -76,9 +69,14 @@ end
 -- Main Attach function for swift env
 M.attach = function()
   local main = strfun('run()')
-  vim.cmd(fmt("autocmd BufWritePre <buffer> :lua %s", main))
+  -- setup autocmd
+  if cfg.auto then
+    cmd(fmt("autocmd BufWritePre <buffer> :lua %s", main))
+  end
   -- setup mapping
+  map('n', _cfg.leader .. cfg.mapping, fmt(":lua %s<cr>", main), { noremap = true })
   -- setup command
+  cmd(fmt("command! %s lua %s]]", cfg.ex, main))
 end
 
 return M

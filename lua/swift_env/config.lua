@@ -20,8 +20,6 @@ local defaults = {
     mapping = "eF",
     -- whether to format on write.
     auto = true,
-    -- options to be passed when calling swiftformat from the command line
-    options = {},
     -- path to config file from root directory
     config_file = ".swiftformat",
     -- create config format config file when it doesn't exists?
@@ -41,7 +39,7 @@ local defaults = {
 --stripunusedargs always
 --wrapcollections before-first
 --wraparguments before-first
---header "{file}\nCopyright (c) {year} Foobar Industries\nCreated by Tami on {created}."
+--header "\n {file}\n\n Copyright (c) {year} Tami\n\n Created by Tami on {created}.\n"
 --tabwidth 2
 --self remove
 

@@ -1,5 +1,6 @@
 local config = {}
-local log = require'plenary.log'.new({ plugin = 'swift.nvim' })
+local util = require'swift_env.util'
+local log = util.log
 
 _SwiftEnvConfig = _SwiftEnvConfig or {}
 

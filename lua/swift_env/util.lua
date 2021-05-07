@@ -1,5 +1,7 @@
 local fmt = string.format
 local util = {}
+util.log = require'plenary.log'.new({ plugin = 'swift.nvim' })
+
 
 ---Creates lua string function call. used for mappings and autocmds
 ---@param mname string: the module name

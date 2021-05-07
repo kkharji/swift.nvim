@@ -7,6 +7,7 @@ local util = require'swift_env.util';
 local strfun = util.strfun('swift_env.format');
 local map = vim.api.nvim_set_keymap;
 local cmd = vim.cmd;
+local log = util.log;
 
 M.create_and_format = function()
   local cwd = vim.loop.cwd();
@@ -18,51 +19,57 @@ end
 
 M.run = function()
   local cwd = vim.loop.cwd();
-  local ensure_cfile = cfg.config_create_if_unreadable;
+  local check = cfg.config_create_if_unreadable;
   local cfile_path = fmt("%s/%s", cwd, cfg.config_file);
-  local cfile_readable = util.filereadable(cfile_path);
+  local exists = util.filereadable(cfile_path);
 
-  if ensure_cfile and not cfile_readable then
-    return M.create_and_format()
-  end
+  if check and not exists then return M.create_and_format() end
 
   local bufnr = vim.api.nvim_get_current_buf();
-  local output = vim.fn.tempname();
-  local args = {
-    vim.api.nvim_buf_get_name(bufnr)
-  };
+  local buflines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
-  if cfile_readable then
+  local args = {
+    "stdin",
+    "--stdinpath",
+    vim.api.nvim_buf_get_name(0),
+  }
+
+  if exists then
     args[#args + 1] = "--config";
     args[#args + 1] = cfile_path;
   else
-    args[#args + 1] = "--swfitversion"
-    args[#args + 1] = "5.4"
+    args[#args + 1] = "--swfitversion";
+    args[#args + 1] = "5.4";
   end
 
-  args[#args + 1] = "--output";
-  args[#args + 1] = output;
+  local err = false;
 
-  local errout = {}
-  local err = false
-  --- TODO: do dryrun before attamping to format. If error, proceed to
-  --formating
-  Job:new({
+  local fmt = Job:new({
+    writer = table.concat(buflines, "\n"),
     command = "swiftformat",
     args = args,
-    on_exit = vim.schedule_wrap(function(j,c)
-      if c ~= 0 then
-        err = true
-        errout = util.get_job_output(j)
+    on_exit = vim.schedule_wrap(function(j,_)
+      --- swiftformat return non-0 and that seems the only way to check for errors
+      local stderr = j:stderr_result();
+      if stderr[3] ~= "Swiftformat completed successfully." then
+        err = true;
+        log.error(fmt("Unexpcted error while formating", table.concat(stderr, "\n")))
+      else
+        err = false
       end
     end)
-  }):sync()
+  })
 
-  if util.not_empty(errout) and err then
-    print("Error formating buffer")
-  else
-    util.set_buf_lines(bufnr, vim.fn.readfile(output))
+  fmt:sync();
+
+  local new = fmt:result();
+
+  --- TODO: use log.
+  if util.not_empty(new) and err then
+    return print("Error formating buffer");
   end
+
+  util.set_buf_lines(bufnr, new)
 end
 
 
@@ -76,7 +83,7 @@ M.attach = function()
   -- setup mapping
   map('n', _cfg.leader .. cfg.mapping, fmt(":lua %s<cr>", main), { noremap = true })
   -- setup command
-  cmd(fmt("command! %s lua %s]]", cfg.ex, main))
+  cmd(fmt("command! %s lua %s", cfg.ex, main))
 end
 
 return M
